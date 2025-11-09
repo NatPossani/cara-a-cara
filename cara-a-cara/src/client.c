@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <ctype.h>
 
 #include "../include/game_data.h"
 
@@ -27,26 +26,11 @@ typedef struct {
     char segredo_nome[64];
     char segredo_emoji[32];
     char segredo_resumo[128];
-    unsigned int ultima_pergunta_mask;
-    int ultima_pergunta_via_sugestao;
-    char ultima_pergunta_texto[256];
 } Jogo;
-
-typedef struct {
-    int indice;
-    int positivos;
-    int total;
-    int balanceamento;
-} DetalheSugestao;
 
 void mostrar_tabuleiro(const Jogo* jogo);
 void exibir_menu(void);
 void atualizar_status_personagem(Jogo* jogo);
-void exibir_sugestoes_perguntas(const Jogo* jogo);
-int contar_personagens_ativos(const Jogo* jogo);
-int preparar_sugestoes_equilibradas(const Jogo* jogo, DetalheSugestao* detalhes, int capacidade);
-int selecionar_pergunta_sugerida(const Jogo* jogo, char* pergunta, size_t pergunta_len, unsigned int* mask, int* via_sugestao);
-int aplicar_resposta_sugestao(Jogo* jogo, int resposta);
 
 // Função para receber mensagem do servidor
 int receber_mensagem(SOCKET sock, char* buffer, int tamanho) {
@@ -214,18 +198,7 @@ void exibir_menu() {
     printf("[0] Fazer uma pergunta\n");
     printf("[1] Chutar o personagem do oponente\n");
     printf("[2] Marcar/Desmarcar personagem como eliminado\n");
-    printf("[3] Ver sugestoes de perguntas\n");
     printf("Escolha uma opcao: ");
-}
-
-int contar_personagens_ativos(const Jogo* jogo) {
-    int ativos = 0;
-    for (int i = 0; i < jogo->num_personagens; ++i) {
-        if (!jogo->cartas[i].eliminado) {
-            ativos++;
-        }
-    }
-    return ativos;
 }
 
 void mostrar_tabuleiro(const Jogo* jogo) {
@@ -245,100 +218,6 @@ void mostrar_tabuleiro(const Jogo* jogo) {
         }
     }
     printf("Legenda: [ ] ativo | [X] eliminado\n");
-}
-
-int preparar_sugestoes_equilibradas(const Jogo* jogo, DetalheSugestao* detalhes, int capacidade) {
-    if (detalhes == NULL || capacidade <= 0) {
-        return 0;
-    }
-
-    int ativos = contar_personagens_ativos(jogo);
-    if (ativos == 0) {
-        return 0;
-    }
-
-    int preenchidos = 0;
-    for (int i = 0; i < NUM_SUGESTOES_PERGUNTAS && preenchidos < capacidade; ++i) {
-        const SugestaoPergunta* sugestao = &SUGESTOES_PERGUNTAS[i];
-        int positivos = 0;
-        for (int personagem = 0; personagem < jogo->num_personagens; ++personagem) {
-            if (!jogo->cartas[personagem].eliminado) {
-                if ((PERSONAGENS_DADOS[personagem].atributos & sugestao->atributo_mask) != 0) {
-                    positivos++;
-                }
-            }
-        }
-
-        detalhes[preenchidos].indice = i;
-        detalhes[preenchidos].positivos = positivos;
-        detalhes[preenchidos].total = ativos;
-        detalhes[preenchidos].balanceamento = abs(ativos - (2 * positivos));
-        preenchidos++;
-    }
-
-    for (int i = 0; i < preenchidos - 1; ++i) {
-        int melhor = i;
-        for (int j = i + 1; j < preenchidos; ++j) {
-            if (detalhes[j].balanceamento < detalhes[melhor].balanceamento) {
-                melhor = j;
-            }
-        }
-        if (melhor != i) {
-            DetalheSugestao temp = detalhes[i];
-            detalhes[i] = detalhes[melhor];
-            detalhes[melhor] = temp;
-        }
-    }
-
-    return preenchidos;
-}
-
-int aplicar_resposta_sugestao(Jogo* jogo, int resposta) {
-    if (!jogo->ultima_pergunta_via_sugestao || jogo->ultima_pergunta_mask == 0) {
-        jogo->ultima_pergunta_via_sugestao = 0;
-        return 0;
-    }
-
-    unsigned int mask = jogo->ultima_pergunta_mask;
-    int alteradas = 0;
-    int analisadas = 0;
-
-    for (int i = 0; i < jogo->num_personagens; ++i) {
-        if (jogo->cartas[i].eliminado) {
-            continue;
-        }
-
-        analisadas++;
-        int possui_atributo = (PERSONAGENS_DADOS[i].atributos & mask) != 0;
-        int manter = resposta ? possui_atributo : !possui_atributo;
-        if (!manter) {
-            jogo->cartas[i].eliminado = 1;
-            alteradas++;
-        }
-    }
-
-    printf("\nFiltro aplicado automaticamente para: %s\n", jogo->ultima_pergunta_texto);
-    if (analisadas == 0) {
-        printf("Nao havia cartas ativas para atualizar.\n");
-    } else if (alteradas == 0) {
-        printf("Nenhuma carta restante foi eliminada com base nessa resposta.\n");
-    } else {
-        printf("%d carta(s) marcadas como eliminadas.\n", alteradas);
-    }
-
-    int restantes = contar_personagens_ativos(jogo);
-    printf("Restam %d carta(s) ativa(s) apos a resposta.\n", restantes);
-    mostrar_tabuleiro(jogo);
-
-    if (restantes == 0) {
-        printf("Aviso: nenhuma carta resta ativa. Revise as respostas ou reverta eliminacoes manualmente.\n");
-    }
-
-    jogo->ultima_pergunta_via_sugestao = 0;
-    jogo->ultima_pergunta_mask = 0;
-    jogo->ultima_pergunta_texto[0] = '\0';
-
-    return 1;
 }
 
 void atualizar_status_personagem(Jogo* jogo) {
@@ -379,142 +258,6 @@ void atualizar_status_personagem(Jogo* jogo) {
            jogo->cartas[idx].emoji,
            jogo->cartas[idx].nome,
            jogo->cartas[idx].eliminado ? "ELIMINADO" : "ATIVO");
-}
-
-void exibir_sugestoes_perguntas(const Jogo* jogo) {
-    if (jogo->num_personagens == 0) {
-        printf("\nO tabuleiro ainda nao foi carregado.\n");
-        return;
-    }
-
-    int ativos = contar_personagens_ativos(jogo);
-    if (ativos <= 1) {
-        printf("\nRestam %d personagem(ns) ativos. Talvez seja hora de chutar!\n", ativos);
-        return;
-    }
-
-    DetalheSugestao detalhes[NUM_SUGESTOES_PERGUNTAS];
-    int total = preparar_sugestoes_equilibradas(jogo, detalhes, NUM_SUGESTOES_PERGUNTAS);
-    if (total == 0) {
-        printf("\nNao ha sugestoes baseadas nos atributos restantes. Considere fazer um chute.\n");
-        return;
-    }
-
-    int limite_top = (total < 3) ? total : 3;
-
-    printf("\n=== SUGESTOES DE PERGUNTAS ===\n");
-    printf("Top %d perguntas que melhor dividem os personagens restantes:\n", limite_top);
-    for (int i = 0; i < limite_top; ++i) {
-        const SugestaoPergunta* sugestao = &SUGESTOES_PERGUNTAS[detalhes[i].indice];
-        printf("%d) %s\n", i + 1, sugestao->pergunta);
-        printf("   -> 'Sim' para %d de %d personagens ativos.\n", detalhes[i].positivos, detalhes[i].total);
-        printf("   Dica: %s\n", sugestao->dica);
-    }
-
-    if (total > limite_top) {
-        printf("\nOutras ideias uteis:\n");
-        for (int i = limite_top; i < total; ++i) {
-            const SugestaoPergunta* sugestao = &SUGESTOES_PERGUNTAS[detalhes[i].indice];
-            printf("- %s (sim em %d/%d)\n",
-                   sugestao->pergunta,
-                   detalhes[i].positivos,
-                   detalhes[i].total);
-        }
-    }
-
-    printf("\nUse uma pergunta que deixe grupos parecidos em tamanho para maximizar as eliminacoes.\n");
-}
-
-int selecionar_pergunta_sugerida(const Jogo* jogo, char* pergunta, size_t pergunta_len, unsigned int* mask, int* via_sugestao) {
-    if (jogo->num_personagens == 0) {
-        printf("Tabuleiro ainda nao carregado. Aguarde antes de perguntar.\n");
-        return 0;
-    }
-
-    if (pergunta == NULL || pergunta_len == 0 || mask == NULL || via_sugestao == NULL) {
-        return 0;
-    }
-
-    DetalheSugestao detalhes[NUM_SUGESTOES_PERGUNTAS];
-    int total = preparar_sugestoes_equilibradas(jogo, detalhes, NUM_SUGESTOES_PERGUNTAS);
-
-    while (1) {
-        int limite_top = total < 5 ? total : 5;
-
-        printf("\n=== ESCOLHA SUA PERGUNTA ===\n");
-        if (limite_top > 0) {
-            for (int i = 0; i < limite_top; ++i) {
-                const SugestaoPergunta* sugestao = &SUGESTOES_PERGUNTAS[detalhes[i].indice];
-                printf("[%d] %s (sim em %d/%d)\n",
-                       i + 1,
-                       sugestao->pergunta,
-                       detalhes[i].positivos,
-                       detalhes[i].total);
-            }
-        } else {
-            printf("Nenhuma sugestao automatica disponivel para o estado atual.\n");
-        }
-
-        printf("[c] Digitar pergunta personalizada\n");
-        if (total > limite_top) {
-            printf("[a] Ver lista completa de sugestoes\n");
-        }
-        printf("[x] Cancelar\n");
-        printf("Escolha uma opcao: ");
-
-        char entrada[32];
-        if (!fgets(entrada, sizeof(entrada), stdin)) {
-            printf("Entrada encerrada. Cancelando pergunta.\n");
-            return 0;
-        }
-
-        entrada[strcspn(entrada, "\n")] = '\0';
-        if (strlen(entrada) == 0) {
-            continue;
-        }
-
-        char comando = (char)tolower((unsigned char)entrada[0]);
-        if (comando == 'x') {
-            return 0;
-        } else if (comando == 'c' || total == 0) {
-            printf("Digite sua pergunta personalizada: ");
-            if (!fgets(pergunta, pergunta_len, stdin)) {
-                printf("Erro de leitura. Pergunta cancelada.\n");
-                return 0;
-            }
-            pergunta[strcspn(pergunta, "\n")] = '\0';
-            if (strlen(pergunta) == 0) {
-                printf("Pergunta vazia. Tente novamente.\n");
-                continue;
-            }
-            *mask = 0;
-            *via_sugestao = 0;
-            return 1;
-        } else if (comando == 'a' && total > limite_top) {
-            exibir_sugestoes_perguntas(jogo);
-            continue;
-        } else {
-            errno = 0;
-            char* fim = NULL;
-            long escolha = strtol(entrada, &fim, 10);
-            if (errno != 0 || fim == entrada || escolha < 1 || escolha > total) {
-                printf("Opcao invalida. Tente novamente.\n");
-                continue;
-            }
-
-            int idx = (int)escolha - 1;
-            const DetalheSugestao* detalhe = &detalhes[idx];
-            const SugestaoPergunta* sugestao = &SUGESTOES_PERGUNTAS[detalhe->indice];
-
-            strncpy(pergunta, sugestao->pergunta, pergunta_len - 1);
-            pergunta[pergunta_len - 1] = '\0';
-            *mask = sugestao->atributo_mask;
-            *via_sugestao = 1;
-
-            printf("Pergunta selecionada: %s\n", pergunta);
-            return 1;
-        }
-    }
 }
 
 int main() {
@@ -601,28 +344,22 @@ int main() {
                 switch (opcao) {
                     case 0: {
                         char pergunta[512];
-                        unsigned int pergunta_mask = 0;
-                        int via_sugestao = 0;
-
-                        if (!selecionar_pergunta_sugerida(&jogo, pergunta, sizeof(pergunta), &pergunta_mask, &via_sugestao)) {
-                            printf("Pergunta cancelada. Escolha outra acao.\n");
+                        printf("Digite sua pergunta: ");
+                        if (!fgets(pergunta, sizeof(pergunta), stdin)) {
+                            printf("Erro de leitura. Encerrando jogo.\n");
+                            jogo_ativo = 0;
+                            turno_concluido = 1;
+                            break;
+                        }
+                        pergunta[strcspn(pergunta, "\n")] = '\0';
+                        if (strlen(pergunta) == 0) {
+                            printf("Pergunta vazia. Tente novamente.\n");
                             break;
                         }
 
                         char msg[BUFFER_SIZE];
                         snprintf(msg, sizeof(msg), "PERGUNTA:%s", pergunta);
                         enviar_mensagem(clientSocket, msg);
-
-                        if (via_sugestao) {
-                            jogo.ultima_pergunta_via_sugestao = 1;
-                            jogo.ultima_pergunta_mask = pergunta_mask;
-                            strncpy(jogo.ultima_pergunta_texto, pergunta, sizeof(jogo.ultima_pergunta_texto) - 1);
-                            jogo.ultima_pergunta_texto[sizeof(jogo.ultima_pergunta_texto) - 1] = '\0';
-                        } else {
-                            jogo.ultima_pergunta_via_sugestao = 0;
-                            jogo.ultima_pergunta_mask = 0;
-                            jogo.ultima_pergunta_texto[0] = '\0';
-                        }
 
                         int resposta_bytes = receber_mensagem(clientSocket, buffer, BUFFER_SIZE);
                         if (resposta_bytes <= 0) {
@@ -635,14 +372,8 @@ int main() {
                         if (strncmp(buffer, "RESPOSTA:", 9) == 0) {
                             int resposta = atoi(buffer + 9);
                             printf("\nResposta do oponente: %s\n", resposta ? "SIM" : "NAO");
-                            int aplicada = aplicar_resposta_sugestao(&jogo, resposta);
-                            if (!aplicada) {
-                                printf("Atualize o tabuleiro manualmente com base nessa resposta.\n");
-                            }
                         } else {
                             printf("Resposta inesperada do servidor: %s\n", buffer);
-                            jogo.ultima_pergunta_via_sugestao = 0;
-                            jogo.ultima_pergunta_mask = 0;
                         }
                         turno_concluido = 1;
                         break;
@@ -712,11 +443,8 @@ int main() {
                     case 2:
                         atualizar_status_personagem(&jogo);
                         break;
-                    case 3:
-                        exibir_sugestoes_perguntas(&jogo);
-                        break;
                     default:
-                        printf("Opcao invalida. Escolha entre 0 e 3.\n");
+                        printf("Opcao invalida. Escolha entre 0 e 2.\n");
                         break;
                 }
             }
@@ -784,10 +512,6 @@ int main() {
         else if (strncmp(buffer, "RESPOSTA:", 9) == 0) {
             int resposta = atoi(buffer + 9);
             printf("Resposta do oponente: %s\n", resposta ? "SIM" : "NAO");
-            int aplicada = aplicar_resposta_sugestao(&jogo, resposta);
-            if (!aplicada) {
-                printf("Reaplique os filtros manualmente se necessario.\n");
-            }
         }
     }
 

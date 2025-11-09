@@ -34,61 +34,61 @@ typedef struct {
 static const PersonagemDados PERSONAGENS_DADOS[MAX_CHARS] = {
     {
         "Ava",
-        "👩‍🦰",
+        "[AVA]",
         FEATURE_GENDER_FEM | FEATURE_HAIR_RED,
         "Cabelos ruivos soltos e sorriso confiante."
     },
     {
         "Ben",
-        "🧔",
+        "[BEN]",
         FEATURE_GENDER_MASC | FEATURE_BEARD,
         "Barba cheia e casaco casual."
     },
     {
         "Chloe",
-        "👱‍♀️",
+        "[CHL]",
         FEATURE_GENDER_FEM | FEATURE_HAIR_BLONDE,
         "Cabelos loiros e visual descontraído."
     },
     {
         "Diego",
-        "👨‍🦱",
+        "[DIE]",
         FEATURE_GENDER_MASC | FEATURE_HAIR_CURLY,
         "Cabelos cacheados e expressão animada."
     },
     {
         "Eva",
-        "👩‍🎓",
+        "[EVA]",
         FEATURE_GENDER_FEM | FEATURE_HEADWEAR | FEATURE_PROF_EDUCACAO,
         "Capelo de formatura e traje acadêmico."
     },
     {
         "Felix",
-        "👨‍✈️",
+        "[FEL]",
         FEATURE_GENDER_MASC | FEATURE_HEADWEAR | FEATURE_UNIFORM,
         "Uniforme impecável de piloto e quepe."
     },
     {
         "Gina",
-        "🧕",
+        "[GIN]",
         FEATURE_GENDER_FEM | FEATURE_HEADWEAR | FEATURE_SCARF,
         "Lenço colorido envolvendo o cabelo."
     },
     {
         "Hugo",
-        "👨‍⚕️",
+        "[HUG]",
         FEATURE_GENDER_MASC | FEATURE_UNIFORM | FEATURE_PROF_SAUDE,
         "Jaleco branco e estetoscópio."
     },
     {
         "Iris",
-        "👩‍🏫",
+        "[IRS]",
         FEATURE_GENDER_FEM | FEATURE_GLASSES | FEATURE_PROF_EDUCACAO,
         "Óculos e blazer de professora."
     },
     {
         "Kai",
-        "👨‍🍳",
+        "[KAI]",
         FEATURE_GENDER_MASC | FEATURE_HEADWEAR | FEATURE_UNIFORM | FEATURE_PROF_CULINARIA,
         "Chapéu de chef e avental."
     }
