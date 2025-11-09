@@ -15,7 +15,6 @@
 typedef struct {
     char nome[64];
     char emoji[32];
-    char resumo[128];
     int eliminado;
 } Carta;
 
@@ -25,7 +24,6 @@ typedef struct {
     int meu_personagem;
     char segredo_nome[64];
     char segredo_emoji[32];
-    char segredo_resumo[128];
 } Jogo;
 
 void mostrar_tabuleiro(const Jogo* jogo);
@@ -82,13 +80,8 @@ void processar_lista_personagens(Jogo* jogo, const char* mensagem) {
                 char* dados = separador_id + 1;
 
                 char* separador_nome_emoji = strchr(dados, '|');
-                char* separador_emoji_resumo = separador_nome_emoji ? strchr(separador_nome_emoji + 1, '|') : NULL;
-
                 if (separador_nome_emoji) {
                     *separador_nome_emoji = '\0';
-                }
-                if (separador_emoji_resumo) {
-                    *separador_emoji_resumo = '\0';
                 }
 
                 strncpy(jogo->cartas[id].nome, dados, sizeof(jogo->cartas[id].nome) - 1);
@@ -98,17 +91,11 @@ void processar_lista_personagens(Jogo* jogo, const char* mensagem) {
                 strncpy(jogo->cartas[id].emoji, emoji, sizeof(jogo->cartas[id].emoji) - 1);
                 jogo->cartas[id].emoji[sizeof(jogo->cartas[id].emoji) - 1] = '\0';
 
-                const char* resumo = separador_emoji_resumo ? separador_emoji_resumo + 1 : "";
-                strncpy(jogo->cartas[id].resumo, resumo, sizeof(jogo->cartas[id].resumo) - 1);
-                jogo->cartas[id].resumo[sizeof(jogo->cartas[id].resumo) - 1] = '\0';
-
                 jogo->cartas[id].eliminado = 0;
 
                 if (id + 1 > jogo->num_personagens) {
                     jogo->num_personagens = id + 1;
                 }
-
-                printf("[%d] %s %s - %s\n", id, jogo->cartas[id].emoji, jogo->cartas[id].nome, jogo->cartas[id].resumo);
             }
         }
         token = strtok(NULL, ";");
@@ -152,26 +139,19 @@ void processar_personagem_secreto(Jogo* jogo, const char* mensagem) {
 
     char* dados = separador_id + 1;
     char* separador_nome_emoji = strchr(dados, '|');
-    char* separador_emoji_resumo = separador_nome_emoji ? strchr(separador_nome_emoji + 1, '|') : NULL;
 
     if (separador_nome_emoji) {
         *separador_nome_emoji = '\0';
     }
-    if (separador_emoji_resumo) {
-        *separador_emoji_resumo = '\0';
-    }
 
     const char* nome = dados;
     const char* emoji = separador_nome_emoji ? separador_nome_emoji + 1 : "";
-    const char* resumo = separador_emoji_resumo ? separador_emoji_resumo + 1 : "";
 
     jogo->meu_personagem = id;
     strncpy(jogo->segredo_nome, nome, sizeof(jogo->segredo_nome) - 1);
     jogo->segredo_nome[sizeof(jogo->segredo_nome) - 1] = '\0';
     strncpy(jogo->segredo_emoji, emoji, sizeof(jogo->segredo_emoji) - 1);
     jogo->segredo_emoji[sizeof(jogo->segredo_emoji) - 1] = '\0';
-    strncpy(jogo->segredo_resumo, resumo, sizeof(jogo->segredo_resumo) - 1);
-    jogo->segredo_resumo[sizeof(jogo->segredo_resumo) - 1] = '\0';
 
     if (id >= 0 && id < jogo->num_personagens) {
         // Atualiza carta correspondente com dados completos
@@ -180,16 +160,10 @@ void processar_personagem_secreto(Jogo* jogo, const char* mensagem) {
 
         strncpy(jogo->cartas[id].emoji, emoji, sizeof(jogo->cartas[id].emoji) - 1);
         jogo->cartas[id].emoji[sizeof(jogo->cartas[id].emoji) - 1] = '\0';
-
-        strncpy(jogo->cartas[id].resumo, resumo, sizeof(jogo->cartas[id].resumo) - 1);
-        jogo->cartas[id].resumo[sizeof(jogo->cartas[id].resumo) - 1] = '\0';
     }
 
     printf("\n=== SEU PERSONAGEM SECRETO ===\n");
     printf("%s %s (indice %d)\n", jogo->segredo_emoji, jogo->segredo_nome, jogo->meu_personagem);
-    if (strlen(jogo->segredo_resumo) > 0) {
-        printf("Descricao: %s\n", jogo->segredo_resumo);
-    }
     printf("==============================\n");
 }
 
@@ -209,15 +183,33 @@ void mostrar_tabuleiro(const Jogo* jogo) {
     }
 
     printf("\n=== TABULEIRO DE PERSONAGENS ===\n");
-    for (int i = 0; i < jogo->num_personagens; ++i) {
-        const Carta* carta = &jogo->cartas[i];
-        char status = carta->eliminado ? 'X' : ' ';
-        const char* marcador = (jogo->meu_personagem == i) ? "(Voce)" : "";
-        printf("%2d) [%c] %s %s %s\n", i, status, carta->emoji, carta->nome, marcador);
-        if (strlen(carta->resumo) > 0) {
-            printf("    %s\n", carta->resumo);
+    const int colunas = 5;
+    const int largura_coluna = 32;
+
+    for (int inicio_linha = 0; inicio_linha < jogo->num_personagens; inicio_linha += colunas) {
+        for (int coluna = 0; coluna < colunas; ++coluna) {
+            int idx = inicio_linha + coluna;
+            if (idx >= jogo->num_personagens) {
+                break;
+            }
+
+            const Carta* carta = &jogo->cartas[idx];
+            char status = carta->eliminado ? 'X' : ' ';
+            const char* marcador = (jogo->meu_personagem == idx) ? " (Voce)" : "";
+
+            char display[128];
+            snprintf(display, sizeof(display), "%2d)[%c] %s %s%s",
+                     idx,
+                     status,
+                     carta->emoji,
+                     carta->nome,
+                     marcador);
+
+            printf("%-*s", largura_coluna, display);
         }
+        printf("\n");
     }
+
     printf("Legenda: [ ] ativo | [X] eliminado\n");
 }
 

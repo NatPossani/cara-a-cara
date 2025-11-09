@@ -40,11 +40,10 @@ void enviar_lista_personagens(SOCKET sock) {
         int escrito = snprintf(
             temp,
             sizeof(temp),
-            "%d:%s|%s|%s;",
+            "%d:%s|%s;",
             i,
             PERSONAGENS_DADOS[i].nome,
-            PERSONAGENS_DADOS[i].emoji,
-            PERSONAGENS_DADOS[i].resumo
+            PERSONAGENS_DADOS[i].emoji
         );
 
         if (escrito < 0) {
@@ -93,11 +92,10 @@ static void enviar_personagem_secreto(SOCKET sock, int personagem) {
     snprintf(
         msg,
         sizeof(msg),
-        "SEU_PERSONAGEM:%d:%s|%s|%s",
+        "SEU_PERSONAGEM:%d:%s|%s",
         personagem,
         PERSONAGENS_DADOS[personagem].nome,
-        PERSONAGENS_DADOS[personagem].emoji,
-        PERSONAGENS_DADOS[personagem].resumo
+        PERSONAGENS_DADOS[personagem].emoji
     );
     enviar_mensagem(sock, msg);
     Sleep(50);

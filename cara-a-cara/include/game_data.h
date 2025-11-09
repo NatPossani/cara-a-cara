@@ -22,7 +22,6 @@ typedef struct {
     const char* nome;
     const char* emoji;
     unsigned int atributos;
-    const char* resumo;
 } PersonagemDados;
 
 typedef struct {
@@ -35,152 +34,127 @@ static const PersonagemDados PERSONAGENS_DADOS[MAX_CHARS] = {
     {
         "Ava",
         "☜(⌒▽⌒)☞",
-        FEATURE_GENDER_FEM | FEATURE_HAIR_RED,
-        "Cabelos ruivos soltos e sorriso confiante."
+        FEATURE_GENDER_FEM | FEATURE_HAIR_RED
     },
     {
         "Ben",
         "ʕ•ᴥ•ʔ",
-        FEATURE_GENDER_MASC | FEATURE_BEARD,
-        "Barba cheia e casaco casual."
+        FEATURE_GENDER_MASC | FEATURE_BEARD
     },
     {
         "Chloe",
         "(づ｡◕‿◕｡)づ",
-        FEATURE_GENDER_FEM | FEATURE_HAIR_BLONDE,
-        "Cabelos loiros e visual descontraido."
+        FEATURE_GENDER_FEM | FEATURE_HAIR_BLONDE
     },
     {
         "Diego",
         "(ง •̀•́)ง",
-        FEATURE_GENDER_MASC | FEATURE_HAIR_CURLY,
-        "Cabelos cacheados e expressao animada."
+        FEATURE_GENDER_MASC | FEATURE_HAIR_CURLY
     },
     {
         "Eva",
         "(∩^o^)⊃━☆",
-        FEATURE_GENDER_FEM | FEATURE_HEADWEAR | FEATURE_PROF_EDUCACAO,
-        "Capelo de formatura e traje academico."
+        FEATURE_GENDER_FEM | FEATURE_HEADWEAR | FEATURE_PROF_EDUCACAO
     },
     {
         "Felix",
         "ヽ(⌐■-■)ノ♪",
-        FEATURE_GENDER_MASC | FEATURE_HEADWEAR | FEATURE_UNIFORM,
-        "Uniforme impecavel de piloto e quepe."
+        FEATURE_GENDER_MASC | FEATURE_HEADWEAR | FEATURE_UNIFORM
     },
     {
         "Gina",
         "/|\\ ^._.^ /|\\",
-        FEATURE_GENDER_FEM | FEATURE_HEADWEAR | FEATURE_SCARF,
-        "Lenco colorido envolvendo o cabelo."
+        FEATURE_GENDER_FEM | FEATURE_HEADWEAR | FEATURE_SCARF
     },
     {
         "Hugo",
         "(•̀ᴗ•́)و",
-        FEATURE_GENDER_MASC | FEATURE_UNIFORM | FEATURE_PROF_SAUDE,
-        "Jaleco branco e estetoscopio."
+        FEATURE_GENDER_MASC | FEATURE_UNIFORM | FEATURE_PROF_SAUDE
     },
     {
         "Iris",
         "(◕‿◕✿)",
-        FEATURE_GENDER_FEM | FEATURE_GLASSES | FEATURE_PROF_EDUCACAO,
-        "Oculos e blazer de professora."
+        FEATURE_GENDER_FEM | FEATURE_GLASSES | FEATURE_PROF_EDUCACAO
     },
     {
         "Kai",
         "(☞ﾟヮﾟ)☞",
-        FEATURE_GENDER_MASC | FEATURE_HEADWEAR | FEATURE_UNIFORM | FEATURE_PROF_CULINARIA,
-        "Chapeu de chef e avental."
+        FEATURE_GENDER_MASC | FEATURE_HEADWEAR | FEATURE_UNIFORM | FEATURE_PROF_CULINARIA
     },
     {
         "Lara",
         "(＾▽＾)",
-        FEATURE_GENDER_FEM | FEATURE_HAIR_RED | FEATURE_GLASSES,
-        "Oculos modernos e cabelos ruivos presos."
+        FEATURE_GENDER_FEM | FEATURE_HAIR_RED | FEATURE_GLASSES
     },
     {
         "Milo",
         "(¬‿¬)",
-        FEATURE_GENDER_MASC | FEATURE_HAIR_BLONDE,
-        "Topete loiro desarrumado e jaqueta de couro."
+        FEATURE_GENDER_MASC | FEATURE_HAIR_BLONDE
     },
     {
         "Nina",
         "ヘ(￣ー￣ヘ)",
-        FEATURE_GENDER_FEM | FEATURE_HAIR_CURLY | FEATURE_SCARF,
-        "Cachos volumosos e lenco estampado."
+        FEATURE_GENDER_FEM | FEATURE_HAIR_CURLY | FEATURE_SCARF
     },
     {
         "Oscar",
         "( ͡° ͜ʖ ͡°)",
-        FEATURE_GENDER_MASC | FEATURE_BEARD | FEATURE_GLASSES,
-        "Oculos escuros, barba aparada e postura confiante."
+        FEATURE_GENDER_MASC | FEATURE_BEARD | FEATURE_GLASSES
     },
     {
         "Pia",
         "(=^･ω･^=)",
-        FEATURE_GENDER_FEM | FEATURE_UNIFORM,
-        "Uniforme elegante e prancheta em maos."
+        FEATURE_GENDER_FEM | FEATURE_UNIFORM
     },
     {
         "Quinn",
         "ƸӜƷ",
-        FEATURE_GENDER_MASC | FEATURE_HEADWEAR,
-        "Bone virado para tras e sorriso ousado."
+        FEATURE_GENDER_MASC | FEATURE_HEADWEAR
     },
     {
         "Rosa",
         "( •͡˘ •͡˘)ノð",
-        FEATURE_GENDER_FEM | FEATURE_PROF_CULINARIA,
-        "Avental colorido e olhar alegre."
+        FEATURE_GENDER_FEM | FEATURE_PROF_CULINARIA
     },
     {
         "Sergio",
         "ヽ(´▽`)/",
-        FEATURE_GENDER_MASC | FEATURE_SCARF | FEATURE_HEADWEAR,
-        "Cachecol grosso, boina e olhar atento."
+        FEATURE_GENDER_MASC | FEATURE_SCARF | FEATURE_HEADWEAR
     },
     {
         "Tara",
         "¯\(ツ)/¯",
-        FEATURE_GENDER_FEM | FEATURE_GLASSES | FEATURE_UNIFORM,
-        "Blazer escolar e oculos redondos."
+        FEATURE_GENDER_FEM | FEATURE_GLASSES | FEATURE_UNIFORM
     },
     {
         "Uri",
         "(✿╹◡╹)",
-        FEATURE_GENDER_MASC | FEATURE_HEADWEAR | FEATURE_BEARD,
-        "Barba curta, boina escura e semblante serio."
+        FEATURE_GENDER_MASC | FEATURE_HEADWEAR | FEATURE_BEARD
     },
     {
         "Vera",
         "(>^^)>",
-        FEATURE_GENDER_FEM | FEATURE_PROF_SAUDE,
-        "Jaleco de enfermagem e sorriso gentil."
+        FEATURE_GENDER_FEM | FEATURE_PROF_SAUDE
     },
     {
         "Wes",
         "(╯°□°）╯︵ ┻━┻",
-        FEATURE_GENDER_MASC | FEATURE_HAIR_RED,
-        "Cabelo ruivo curto e camiseta esportiva."
+        FEATURE_GENDER_MASC | FEATURE_HAIR_RED
     },
     {
         "Xena",
         "(~˘▾˘)~",
-        FEATURE_GENDER_FEM | FEATURE_HEADWEAR | FEATURE_HAIR_BLONDE,
-        "Chapeu vistoso, cabelos loiros e olhar decidido."
+        FEATURE_GENDER_FEM | FEATURE_HEADWEAR | FEATURE_HAIR_BLONDE
     },
     {
         "Yuri",
         "(ง°ل͜°)ง",
-        FEATURE_GENDER_MASC | FEATURE_PROF_EDUCACAO,
-        "Blazer academico e pilha de livros."
+        FEATURE_GENDER_MASC | FEATURE_PROF_EDUCACAO
     },
     {
         "Zoe",
         "(~˘▾˘)~",
-        FEATURE_GENDER_FEM | FEATURE_HAIR_CURLY | FEATURE_GLASSES,
-        "Cachos definidos, oculos quadrados e energia contagiante."
+        FEATURE_GENDER_FEM | FEATURE_HAIR_CURLY | FEATURE_GLASSES
     }
 };
 
