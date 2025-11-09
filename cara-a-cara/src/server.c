@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
+#include <errno.h>
 #include <winsock2.h>
 #include <windows.h>
 
@@ -9,7 +9,7 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 #define PORT 51171
 
 // Função para enviar mensagem ao cliente
@@ -36,7 +36,7 @@ void enviar_lista_personagens(SOCKET sock) {
     strcpy(mensagem, "PERSONAGENS:");
 
     for (int i = 0; i < MAX_CHARS; i++) {
-        char temp[256];
+        char temp[512];
         int escrito = snprintf(
             temp,
             sizeof(temp),
@@ -63,9 +63,48 @@ void enviar_lista_personagens(SOCKET sock) {
     enviar_mensagem(sock, mensagem);
 }
 
+static int aguardar_escolha_personagem(SOCKET jogador) {
+    char buffer[BUFFER_SIZE];
+    while (1) {
+        int bytesReceived = receber_mensagem(jogador, buffer, BUFFER_SIZE);
+        if (bytesReceived <= 0) {
+            return -1;
+        }
+
+        if (strncmp(buffer, "ESCOLHA:", 8) == 0) {
+            errno = 0;
+            char* fim = NULL;
+            long indice = strtol(buffer + 8, &fim, 10);
+            if (errno == 0 && fim != buffer + 8 && indice >= 0 && indice < MAX_CHARS) {
+                return (int)indice;
+            }
+        }
+
+        enviar_mensagem(jogador, "ESCOLHA_INVALIDA");
+    }
+}
+
+static void enviar_personagem_secreto(SOCKET sock, int personagem) {
+    if (personagem < 0 || personagem >= MAX_CHARS) {
+        return;
+    }
+
+    char msg[512];
+    snprintf(
+        msg,
+        sizeof(msg),
+        "SEU_PERSONAGEM:%d:%s|%s|%s",
+        personagem,
+        PERSONAGENS_DADOS[personagem].nome,
+        PERSONAGENS_DADOS[personagem].emoji,
+        PERSONAGENS_DADOS[personagem].resumo
+    );
+    enviar_mensagem(sock, msg);
+    Sleep(50);
+}
+
 int main() {
     WSADATA winsocketsDados;
-    srand((unsigned int)time(NULL));
 
     if (WSAStartup(MAKEWORD(2, 2), &winsocketsDados) != 0) {
         printf("WSAStartup falhou\n");
@@ -133,27 +172,8 @@ int main() {
     printf("Jogador 2 conectado!\n");
     printf("Iniciando jogo...\n\n");
 
-    // Sortear personagens secretos
-    int personagem1 = rand() % MAX_CHARS;
-    int personagem2 = rand() % MAX_CHARS;
-    
-    // Garantir que sejam diferentes
-    while (personagem2 == personagem1) {
-        personagem2 = rand() % MAX_CHARS;
-    }
-
-    printf(
-        "Personagem do Jogador 1: %s %s (indice %d)\n",
-        PERSONAGENS_DADOS[personagem1].emoji,
-        PERSONAGENS_DADOS[personagem1].nome,
-        personagem1
-    );
-    printf(
-        "Personagem do Jogador 2: %s %s (indice %d)\n",
-        PERSONAGENS_DADOS[personagem2].emoji,
-        PERSONAGENS_DADOS[personagem2].nome,
-        personagem2
-    );
+    int personagem1 = -1;
+    int personagem2 = -1;
 
     // Enviar lista de personagens para ambos
     printf("Enviando lista de personagens...\n");
@@ -162,33 +182,39 @@ int main() {
     enviar_lista_personagens(clientSocket2);
     Sleep(100);
 
-    // Enviar personagem secreto para cada jogador
-    printf("Enviando personagens secretos...\n");
-    char msg_secreto1[256];
-    snprintf(
-        msg_secreto1,
-        sizeof(msg_secreto1),
-        "SEU_PERSONAGEM:%d:%s|%s|%s",
-        personagem1,
-        PERSONAGENS_DADOS[personagem1].nome,
+    // Permitir que os jogadores escolham os personagens
+    enviar_mensagem(clientSocket1, "ESCOLHA_PERSONAGEM");
+    enviar_mensagem(clientSocket2, "AGUARDE_OPONENTE_ESCOLHER");
+    personagem1 = aguardar_escolha_personagem(clientSocket1);
+    if (personagem1 < 0) {
+        printf("Conexao perdida durante a escolha do Jogador 1.\n");
+        goto cleanup;
+    }
+    printf(
+        "Jogador 1 escolheu: %s %s (indice %d)\n",
         PERSONAGENS_DADOS[personagem1].emoji,
-        PERSONAGENS_DADOS[personagem1].resumo
+        PERSONAGENS_DADOS[personagem1].nome,
+        personagem1
     );
-    enviar_mensagem(clientSocket1, msg_secreto1);
-    Sleep(100);
+    enviar_personagem_secreto(clientSocket1, personagem1);
+    Sleep(50);
+    enviar_mensagem(clientSocket1, "AGUARDE_OPONENTE_ESCOLHER");
 
-    char msg_secreto2[256];
-    snprintf(
-        msg_secreto2,
-        sizeof(msg_secreto2),
-        "SEU_PERSONAGEM:%d:%s|%s|%s",
-        personagem2,
-        PERSONAGENS_DADOS[personagem2].nome,
+    enviar_mensagem(clientSocket2, "ESCOLHA_PERSONAGEM");
+    personagem2 = aguardar_escolha_personagem(clientSocket2);
+    if (personagem2 < 0) {
+        printf("Conexao perdida durante a escolha do Jogador 2.\n");
+        goto cleanup;
+    }
+    printf(
+        "Jogador 2 escolheu: %s %s (indice %d)\n",
         PERSONAGENS_DADOS[personagem2].emoji,
-        PERSONAGENS_DADOS[personagem2].resumo
+        PERSONAGENS_DADOS[personagem2].nome,
+        personagem2
     );
-    enviar_mensagem(clientSocket2, msg_secreto2);
-    Sleep(100);
+    enviar_personagem_secreto(clientSocket2, personagem2);
+    Sleep(50);
+    enviar_mensagem(clientSocket2, "AGUARDE_OPONENTE_ESCOLHER");
 
     // Enviar sinal de início do jogo
     printf("Iniciando jogo...\n");
@@ -208,7 +234,6 @@ int main() {
     while (jogo_ativo) {
         SOCKET jogador_atual = (turno == 1) ? clientSocket1 : clientSocket2;
         SOCKET jogador_oponente = (turno == 1) ? clientSocket2 : clientSocket1;
-        int personagem_atual = (turno == 1) ? personagem1 : personagem2;
         int personagem_oponente = (turno == 1) ? personagem2 : personagem1;
 
         // Enviar mensagem de turno
@@ -236,10 +261,10 @@ int main() {
         printf("Jogador %d enviou: %s\n", turno, buffer);
 
         // Processar ação
-        if (strncmp(buffer, "PERGUNTA:", 10) == 0) {
+        if (strncmp(buffer, "PERGUNTA:", 9) == 0) {
             // Jogador fez uma pergunta
             char pergunta[BUFFER_SIZE];
-            strcpy(pergunta, buffer + 10);
+            strcpy(pergunta, buffer + 9);
             
             printf("Jogador %d perguntou: %s\n", turno, pergunta);
             
@@ -302,13 +327,18 @@ int main() {
         }
     }
 
-    // Aguardar um pouco antes de fechar
+cleanup:
     Sleep(2000);
 
-    // Fechar conexões
-    closesocket(clientSocket1);
-    closesocket(clientSocket2);
-    closesocket(sock);
+    if (clientSocket1 != INVALID_SOCKET) {
+        closesocket(clientSocket1);
+    }
+    if (clientSocket2 != INVALID_SOCKET) {
+        closesocket(clientSocket2);
+    }
+    if (sock != INVALID_SOCKET) {
+        closesocket(sock);
+    }
     WSACleanup();
     
     printf("Jogo encerrado.\n");

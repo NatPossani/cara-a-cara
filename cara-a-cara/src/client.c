@@ -9,7 +9,7 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 #define PORT 51171
 // Estruturas para armazenar informações do tabuleiro
 typedef struct {
@@ -31,6 +31,7 @@ typedef struct {
 void mostrar_tabuleiro(const Jogo* jogo);
 void exibir_menu(void);
 void atualizar_status_personagem(Jogo* jogo);
+void solicitar_escolha_personagem(Jogo* jogo, SOCKET sock, int exibir_tabuleiro);
 
 // Função para receber mensagem do servidor
 int receber_mensagem(SOCKET sock, char* buffer, int tamanho) {
@@ -260,6 +261,51 @@ void atualizar_status_personagem(Jogo* jogo) {
            jogo->cartas[idx].eliminado ? "ELIMINADO" : "ATIVO");
 }
 
+void solicitar_escolha_personagem(Jogo* jogo, SOCKET sock, int exibir_tabuleiro) {
+    if (jogo->num_personagens == 0) {
+        printf("\nO tabuleiro ainda nao foi carregado. Aguarde a lista de personagens.\n");
+        return;
+    }
+
+    if (exibir_tabuleiro) {
+        mostrar_tabuleiro(jogo);
+    }
+
+    while (1) {
+        printf("\nEscolha o indice do seu personagem secreto (0-%d): ", jogo->num_personagens - 1);
+        char entrada[32];
+        if (!fgets(entrada, sizeof(entrada), stdin)) {
+            printf("Entrada encerrada. Nenhuma escolha enviada.\n");
+            return;
+        }
+
+        entrada[strcspn(entrada, "\n")] = '\0';
+        if (strlen(entrada) == 0) {
+            printf("Entrada vazia. Informe um numero valido.\n");
+            continue;
+        }
+
+        errno = 0;
+        char* fim = NULL;
+        long indice_long = strtol(entrada, &fim, 10);
+        if (errno != 0 || fim == entrada || indice_long < 0 || indice_long >= jogo->num_personagens) {
+            printf("Indice invalido. Use um numero entre 0 e %d.\n", jogo->num_personagens - 1);
+            continue;
+        }
+
+        int indice = (int)indice_long;
+        char msg[64];
+        snprintf(msg, sizeof(msg), "ESCOLHA:%d", indice);
+
+        if (enviar_mensagem(sock, msg) == SOCKET_ERROR) {
+            printf("Falha ao enviar a escolha ao servidor.\n");
+        } else {
+            printf("Escolha enviada. Aguarde confirmacao do servidor.\n");
+        }
+        break;
+    }
+}
+
 int main() {
     WSADATA winsocketsDados;
     Jogo jogo;
@@ -309,6 +355,16 @@ int main() {
         }
         else if (strncmp(buffer, "SEU_PERSONAGEM:", 15) == 0) {
             processar_personagem_secreto(&jogo, buffer);
+        }
+        else if (strcmp(buffer, "ESCOLHA_PERSONAGEM") == 0) {
+            solicitar_escolha_personagem(&jogo, clientSocket, 1);
+        }
+        else if (strcmp(buffer, "ESCOLHA_INVALIDA") == 0) {
+            printf("\nEscolha rejeitada pelo servidor. Tente novamente.\n");
+            solicitar_escolha_personagem(&jogo, clientSocket, 0);
+        }
+        else if (strcmp(buffer, "AGUARDE_OPONENTE_ESCOLHER") == 0) {
+            printf("\nAguarde o oponente escolher o personagem.\n");
         }
         else if (strcmp(buffer, "JOGO_INICIADO") == 0) {
             printf("\n=== JOGO INICIADO! ===\n");
