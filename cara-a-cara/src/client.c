@@ -3,21 +3,36 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "../include/graphics.h"
+#include <errno.h>
+
+#include "../include/game_data.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
 #define BUFFER_SIZE 1024
 #define PORT 51171
-#define MAX_CHARS 10
-
-// Estrutura para armazenar informações do jogo
+// Estruturas para armazenar informações do tabuleiro
 typedef struct {
-    char personagens[MAX_CHARS][100];
-    int meu_personagem;
-    char meu_personagem_nome[100];
+    char nome[64];
+    char emoji[32];
+    char resumo[128];
+    int eliminado;
+} Carta;
+
+typedef struct {
+    Carta cartas[MAX_CHARS];
     int num_personagens;
+    int meu_personagem;
+    char segredo_nome[64];
+    char segredo_emoji[32];
+    char segredo_resumo[128];
 } Jogo;
+
+void mostrar_tabuleiro(const Jogo* jogo);
+void exibir_menu(void);
+void atualizar_status_personagem(Jogo* jogo);
+void exibir_sugestoes_perguntas(const Jogo* jogo);
+int contar_personagens_ativos(const Jogo* jogo);
 
 // Função para receber mensagem do servidor
 int receber_mensagem(SOCKET sock, char* buffer, int tamanho) {
@@ -35,60 +50,148 @@ int enviar_mensagem(SOCKET sock, const char* mensagem) {
     return send(sock, mensagem, strlen(mensagem), 0);
 }
 
-// Função para processar lista de personagens
+// Função para processar lista de personagens enviada pelo servidor
 void processar_lista_personagens(Jogo* jogo, const char* mensagem) {
     printf("\n=== PERSONAGENS DISPONIVEIS ===\n");
-    
-    // Extrair lista de personagens da mensagem
-    // Formato: PERSONAGENS:0:nome1;1:nome2;...
+
     const char* inicio = strstr(mensagem, "PERSONAGENS:");
-    if (inicio) {
-        inicio += 12; // Pular "PERSONAGENS:"
-        char* lista = strdup(inicio);
-        char* token = strtok(lista, ";");
-        int indice = 0;
-        
-        while (token != NULL && indice < MAX_CHARS) {
-            char* dois_pontos = strchr(token, ':');
-            if (dois_pontos) {
-                *dois_pontos = '\0';
-                int id = atoi(token);
-                strcpy(jogo->personagens[id], dois_pontos + 1);
-                printf("[%d] %s\n", id, jogo->personagens[id]);
-                indice++;
-            }
-            token = strtok(NULL, ";");
-        }
-        jogo->num_personagens = indice;
-        free(lista);
+    if (!inicio) {
+        printf("Nao foi possivel interpretar a lista de personagens.\n");
+        return;
     }
-    printf("===============================\n\n");
+
+    inicio += 12; // pular "PERSONAGENS:"
+    char* lista = strdup(inicio);
+    if (!lista) {
+        printf("Falha ao alocar memoria para a lista de personagens.\n");
+        return;
+    }
+
+    memset(jogo->cartas, 0, sizeof(jogo->cartas));
+    jogo->num_personagens = 0;
+
+    char* token = strtok(lista, ";");
+    while (token != NULL) {
+        char* separador_id = strchr(token, ':');
+        if (separador_id) {
+            *separador_id = '\0';
+            errno = 0;
+            char* fim_id = NULL;
+            long id_long = strtol(token, &fim_id, 10);
+            if (errno == 0 && fim_id != token && id_long >= 0 && id_long < MAX_CHARS) {
+                int id = (int)id_long;
+                char* dados = separador_id + 1;
+
+                char* separador_nome_emoji = strchr(dados, '|');
+                char* separador_emoji_resumo = separador_nome_emoji ? strchr(separador_nome_emoji + 1, '|') : NULL;
+
+                if (separador_nome_emoji) {
+                    *separador_nome_emoji = '\0';
+                }
+                if (separador_emoji_resumo) {
+                    *separador_emoji_resumo = '\0';
+                }
+
+                strncpy(jogo->cartas[id].nome, dados, sizeof(jogo->cartas[id].nome) - 1);
+                jogo->cartas[id].nome[sizeof(jogo->cartas[id].nome) - 1] = '\0';
+
+                const char* emoji = separador_nome_emoji ? separador_nome_emoji + 1 : "";
+                strncpy(jogo->cartas[id].emoji, emoji, sizeof(jogo->cartas[id].emoji) - 1);
+                jogo->cartas[id].emoji[sizeof(jogo->cartas[id].emoji) - 1] = '\0';
+
+                const char* resumo = separador_emoji_resumo ? separador_emoji_resumo + 1 : "";
+                strncpy(jogo->cartas[id].resumo, resumo, sizeof(jogo->cartas[id].resumo) - 1);
+                jogo->cartas[id].resumo[sizeof(jogo->cartas[id].resumo) - 1] = '\0';
+
+                jogo->cartas[id].eliminado = 0;
+
+                if (id + 1 > jogo->num_personagens) {
+                    jogo->num_personagens = id + 1;
+                }
+
+                printf("[%d] %s %s - %s\n", id, jogo->cartas[id].emoji, jogo->cartas[id].nome, jogo->cartas[id].resumo);
+            }
+        }
+        token = strtok(NULL, ";");
+    }
+
+    free(lista);
+
+    if (jogo->num_personagens == 0) {
+        printf("Nenhum personagem carregado.\n");
+    }
+
+    printf("===============================\n");
+    mostrar_tabuleiro(jogo);
 }
 
 // Função para processar personagem secreto
 void processar_personagem_secreto(Jogo* jogo, const char* mensagem) {
-    // Formato: SEU_PERSONAGEM:id:nome
     const char* inicio = strstr(mensagem, "SEU_PERSONAGEM:");
-    if (inicio) {
-        inicio += 15; // Pular "SEU_PERSONAGEM:"
-        char* dois_pontos = strchr(inicio, ':');
-        if (dois_pontos) {
-            *dois_pontos = '\0';
-            jogo->meu_personagem = atoi(inicio);
-            strcpy(jogo->meu_personagem_nome, dois_pontos + 1);
-            
-            printf("\n=== SEU PERSONAGEM SECRETO ===\n");
-            printf("Personagem: %s (Indice: %d)\n", jogo->meu_personagem_nome, jogo->meu_personagem);
-            
-            // Construir caminho da imagem
-            char caminho_imagem[256];
-            sprintf(caminho_imagem, "images/%s.jpg", jogo->meu_personagem_nome);
-            
-            // Exibir imagem
-            readimagefile(caminho_imagem, 100, 100, 400, 400);
-            printf("==============================\n\n");
-        }
+    if (!inicio) {
+        return;
     }
+
+    inicio += 15; // pular "SEU_PERSONAGEM:"
+    char conteudo[BUFFER_SIZE];
+    strncpy(conteudo, inicio, sizeof(conteudo) - 1);
+    conteudo[sizeof(conteudo) - 1] = '\0';
+
+    char* separador_id = strchr(conteudo, ':');
+    if (!separador_id) {
+        return;
+    }
+
+    *separador_id = '\0';
+    errno = 0;
+    char* fim_id = NULL;
+    long id_long = strtol(conteudo, &fim_id, 10);
+    if (errno != 0 || fim_id == conteudo || id_long < 0 || id_long >= MAX_CHARS) {
+        return;
+    }
+    int id = (int)id_long;
+
+    char* dados = separador_id + 1;
+    char* separador_nome_emoji = strchr(dados, '|');
+    char* separador_emoji_resumo = separador_nome_emoji ? strchr(separador_nome_emoji + 1, '|') : NULL;
+
+    if (separador_nome_emoji) {
+        *separador_nome_emoji = '\0';
+    }
+    if (separador_emoji_resumo) {
+        *separador_emoji_resumo = '\0';
+    }
+
+    const char* nome = dados;
+    const char* emoji = separador_nome_emoji ? separador_nome_emoji + 1 : "";
+    const char* resumo = separador_emoji_resumo ? separador_emoji_resumo + 1 : "";
+
+    jogo->meu_personagem = id;
+    strncpy(jogo->segredo_nome, nome, sizeof(jogo->segredo_nome) - 1);
+    jogo->segredo_nome[sizeof(jogo->segredo_nome) - 1] = '\0';
+    strncpy(jogo->segredo_emoji, emoji, sizeof(jogo->segredo_emoji) - 1);
+    jogo->segredo_emoji[sizeof(jogo->segredo_emoji) - 1] = '\0';
+    strncpy(jogo->segredo_resumo, resumo, sizeof(jogo->segredo_resumo) - 1);
+    jogo->segredo_resumo[sizeof(jogo->segredo_resumo) - 1] = '\0';
+
+    if (id >= 0 && id < jogo->num_personagens) {
+        // Atualiza carta correspondente com dados completos
+        strncpy(jogo->cartas[id].nome, nome, sizeof(jogo->cartas[id].nome) - 1);
+        jogo->cartas[id].nome[sizeof(jogo->cartas[id].nome) - 1] = '\0';
+
+        strncpy(jogo->cartas[id].emoji, emoji, sizeof(jogo->cartas[id].emoji) - 1);
+        jogo->cartas[id].emoji[sizeof(jogo->cartas[id].emoji) - 1] = '\0';
+
+        strncpy(jogo->cartas[id].resumo, resumo, sizeof(jogo->cartas[id].resumo) - 1);
+        jogo->cartas[id].resumo[sizeof(jogo->cartas[id].resumo) - 1] = '\0';
+    }
+
+    printf("\n=== SEU PERSONAGEM SECRETO ===\n");
+    printf("%s %s (indice %d)\n", jogo->segredo_emoji, jogo->segredo_nome, jogo->meu_personagem);
+    if (strlen(jogo->segredo_resumo) > 0) {
+        printf("Descricao: %s\n", jogo->segredo_resumo);
+    }
+    printf("==============================\n");
 }
 
 // Função para exibir menu de ações
@@ -96,21 +199,166 @@ void exibir_menu() {
     printf("\n=== SUA VEZ! ===\n");
     printf("[0] Fazer uma pergunta\n");
     printf("[1] Chutar o personagem do oponente\n");
+    printf("[2] Marcar/Desmarcar personagem como eliminado\n");
+    printf("[3] Ver sugestoes de perguntas\n");
     printf("Escolha uma opcao: ");
+}
+
+int contar_personagens_ativos(const Jogo* jogo) {
+    int ativos = 0;
+    for (int i = 0; i < jogo->num_personagens; ++i) {
+        if (!jogo->cartas[i].eliminado) {
+            ativos++;
+        }
+    }
+    return ativos;
+}
+
+void mostrar_tabuleiro(const Jogo* jogo) {
+    if (jogo->num_personagens == 0) {
+        printf("\nTabuleiro ainda nao carregado.\n");
+        return;
+    }
+
+    printf("\n=== TABULEIRO DE PERSONAGENS ===\n");
+    for (int i = 0; i < jogo->num_personagens; ++i) {
+        const Carta* carta = &jogo->cartas[i];
+        char status = carta->eliminado ? 'X' : ' ';
+        const char* marcador = (jogo->meu_personagem == i) ? "(Voce)" : "";
+        printf("%2d) [%c] %s %s %s\n", i, status, carta->emoji, carta->nome, marcador);
+        if (strlen(carta->resumo) > 0) {
+            printf("    %s\n", carta->resumo);
+        }
+    }
+    printf("Legenda: [ ] ativo | [X] eliminado\n");
+}
+
+void atualizar_status_personagem(Jogo* jogo) {
+    if (jogo->num_personagens == 0) {
+        printf("\nO tabuleiro ainda nao foi carregado.\n");
+        return;
+    }
+
+    printf("\nDigite o numero do personagem para alternar o status: ");
+    char entrada[32];
+    if (!fgets(entrada, sizeof(entrada), stdin)) {
+        return;
+    }
+
+    entrada[strcspn(entrada, "\n")] = '\0';
+    if (strlen(entrada) == 0) {
+        printf("Entrada vazia. Nenhuma alteracao realizada.\n");
+        return;
+    }
+
+    errno = 0;
+    char* fim = NULL;
+    long indice = strtol(entrada, &fim, 10);
+    if (errno != 0 || fim == entrada || indice < 0 || indice >= jogo->num_personagens) {
+        printf("Indice invalido. Use um numero entre 0 e %d.\n", jogo->num_personagens - 1);
+        return;
+    }
+
+    int idx = (int)indice;
+    jogo->cartas[idx].eliminado = !jogo->cartas[idx].eliminado;
+
+    if (idx == jogo->meu_personagem) {
+        printf("Aviso: voce acabou de %s seu proprio personagem!\n",
+               jogo->cartas[idx].eliminado ? "eliminar" : "reativar");
+    }
+
+    printf("%s %s agora esta marcado como %s.\n",
+           jogo->cartas[idx].emoji,
+           jogo->cartas[idx].nome,
+           jogo->cartas[idx].eliminado ? "ELIMINADO" : "ATIVO");
+}
+
+void exibir_sugestoes_perguntas(const Jogo* jogo) {
+    if (jogo->num_personagens == 0) {
+        printf("\nO tabuleiro ainda nao foi carregado.\n");
+        return;
+    }
+
+    int ativos = contar_personagens_ativos(jogo);
+    if (ativos <= 1) {
+        printf("\nRestam %d personagem(ns) ativos. Talvez seja hora de chutar!\n", ativos);
+        return;
+    }
+
+    typedef struct {
+        int indice;
+        int positivos;
+        int total;
+        int balanceamento;
+    } DetalheSugestao;
+
+    DetalheSugestao detalhes[NUM_SUGESTOES_PERGUNTAS];
+
+    for (int i = 0; i < NUM_SUGESTOES_PERGUNTAS; ++i) {
+        const SugestaoPergunta* sugestao = &SUGESTOES_PERGUNTAS[i];
+        int positivos = 0;
+        for (int personagem = 0; personagem < jogo->num_personagens; ++personagem) {
+            if (!jogo->cartas[personagem].eliminado) {
+                if ((PERSONAGENS_DADOS[personagem].atributos & sugestao->atributo_mask) != 0) {
+                    positivos++;
+                }
+            }
+        }
+
+        detalhes[i].indice = i;
+        detalhes[i].positivos = positivos;
+        detalhes[i].total = ativos;
+        detalhes[i].balanceamento = abs(ativos - 2 * positivos);
+    }
+
+    // Ordena por melhor balanceamento (menor diferença entre sim e não)
+    for (int i = 0; i < NUM_SUGESTOES_PERGUNTAS - 1; ++i) {
+        int melhor = i;
+        for (int j = i + 1; j < NUM_SUGESTOES_PERGUNTAS; ++j) {
+            if (detalhes[j].balanceamento < detalhes[melhor].balanceamento) {
+                melhor = j;
+            }
+        }
+        if (melhor != i) {
+            DetalheSugestao temp = detalhes[i];
+            detalhes[i] = detalhes[melhor];
+            detalhes[melhor] = temp;
+        }
+    }
+
+    int limite_top = NUM_SUGESTOES_PERGUNTAS < 3 ? NUM_SUGESTOES_PERGUNTAS : 3;
+
+    printf("\n=== SUGESTOES DE PERGUNTAS ===\n");
+    printf("Top %d perguntas que melhor dividem os personagens restantes:\n", limite_top);
+    for (int i = 0; i < limite_top; ++i) {
+        const SugestaoPergunta* sugestao = &SUGESTOES_PERGUNTAS[detalhes[i].indice];
+        printf("%d) %s\n", i + 1, sugestao->pergunta);
+        printf("   -> 'Sim' para %d de %d personagens ativos.\n", detalhes[i].positivos, detalhes[i].total);
+        printf("   Dica: %s\n", sugestao->dica);
+    }
+
+    if (NUM_SUGESTOES_PERGUNTAS > limite_top) {
+        printf("\nOutras ideias uteis:\n");
+        for (int i = limite_top; i < NUM_SUGESTOES_PERGUNTAS; ++i) {
+            const SugestaoPergunta* sugestao = &SUGESTOES_PERGUNTAS[detalhes[i].indice];
+            printf("- %s (sim em %d/%d)\n",
+                   sugestao->pergunta,
+                   detalhes[i].positivos,
+                   detalhes[i].total);
+        }
+    }
+
+    printf("\nUse uma pergunta que deixe grupos parecidos em tamanho para maximizar as eliminacoes.\n");
 }
 
 int main() {
     WSADATA winsocketsDados;
     Jogo jogo;
     memset(&jogo, 0, sizeof(Jogo));
-    
-    // Inicializar gráficos
-    int gdriver = 0, gmode = 0;
-    initgraph(&gdriver, &gmode, "");
-    
+    jogo.meu_personagem = -1;
+
     if (WSAStartup(MAKEWORD(2, 2), &winsocketsDados) != 0) {
         printf("Falha ao inicializar o Winsock\n");
-        closegraph();
         return 1;
     }
 
@@ -158,58 +406,141 @@ int main() {
             printf("Aguardando seu turno...\n\n");
         }
         else if (strcmp(buffer, "SEU_TURNO") == 0) {
-            // É minha vez de jogar
-            exibir_menu();
-            
-            int opcao;
-            scanf("%d", &opcao);
-            getchar(); // Limpar buffer
-            
-            if (opcao == 0) {
-                // Fazer pergunta
-                printf("Digite sua pergunta: ");
-                char pergunta[512];
-                fgets(pergunta, sizeof(pergunta), stdin);
-                pergunta[strcspn(pergunta, "\n")] = 0;
-                
-                char msg[BUFFER_SIZE];
-                sprintf(msg, "PERGUNTA:%s", pergunta);
-                enviar_mensagem(clientSocket, msg);
-                
-                // Aguardar resposta do oponente
-                bytesReceived = receber_mensagem(clientSocket, buffer, BUFFER_SIZE);
-                if (bytesReceived > 0) {
-                    if (strncmp(buffer, "RESPOSTA:", 9) == 0) {
-                        int resposta = atoi(buffer + 9);
-                        printf("\nResposta do oponente: %s\n", resposta ? "SIM" : "NAO");
-                    }
+            int turno_concluido = 0;
+            while (jogo_ativo && !turno_concluido) {
+                mostrar_tabuleiro(&jogo);
+                exibir_menu();
+
+                char entrada[32];
+                if (!fgets(entrada, sizeof(entrada), stdin)) {
+                    printf("Entrada encerrada. Finalizando jogo.\n");
+                    jogo_ativo = 0;
+                    break;
                 }
-            }
-            else if (opcao == 1) {
-                // Chutar personagem
-                printf("\nDigite o numero do personagem que voce quer chutar (0-%d): ", jogo.num_personagens - 1);
-                int chute;
-                scanf("%d", &chute);
-                getchar(); // Limpar buffer
-                
-                if (chute >= 0 && chute < jogo.num_personagens) {
-                    char msg[100];
-                    sprintf(msg, "CHUTE:%d", chute);
-                    enviar_mensagem(clientSocket, msg);
-                    
-                    // Aguardar resultado
-                    bytesReceived = receber_mensagem(clientSocket, buffer, BUFFER_SIZE);
-                    if (bytesReceived > 0) {
+
+                entrada[strcspn(entrada, "\n")] = '\0';
+                if (strlen(entrada) == 0) {
+                    continue;
+                }
+
+                errno = 0;
+                char* fim = NULL;
+                long opcao_long = strtol(entrada, &fim, 10);
+                if (errno != 0 || fim == entrada) {
+                    printf("Opcao invalida. Tente novamente.\n");
+                    continue;
+                }
+
+                int opcao = (int)opcao_long;
+                switch (opcao) {
+                    case 0: {
+                        printf("Digite sua pergunta: ");
+                        char pergunta[512];
+                        if (!fgets(pergunta, sizeof(pergunta), stdin)) {
+                            printf("Erro de leitura. Encerrando jogo.\n");
+                            jogo_ativo = 0;
+                            turno_concluido = 1;
+                            break;
+                        }
+                        pergunta[strcspn(pergunta, "\n")] = '\0';
+                        if (strlen(pergunta) == 0) {
+                            printf("Pergunta vazia. Tente novamente.\n");
+                            break;
+                        }
+
+                        char msg[BUFFER_SIZE];
+                        snprintf(msg, sizeof(msg), "PERGUNTA:%s", pergunta);
+                        enviar_mensagem(clientSocket, msg);
+
+                        int resposta_bytes = receber_mensagem(clientSocket, buffer, BUFFER_SIZE);
+                        if (resposta_bytes <= 0) {
+                            printf("Conexao perdida ao aguardar resposta.\n");
+                            jogo_ativo = 0;
+                            turno_concluido = 1;
+                            break;
+                        }
+
+                        if (strncmp(buffer, "RESPOSTA:", 9) == 0) {
+                            int resposta = atoi(buffer + 9);
+                            printf("\nResposta do oponente: %s\n", resposta ? "SIM" : "NAO");
+                            printf("Atualize o tabuleiro conforme necessario.\n");
+                        } else {
+                            printf("Resposta inesperada do servidor: %s\n", buffer);
+                        }
+                        turno_concluido = 1;
+                        break;
+                    }
+                    case 1: {
+                        if (jogo.num_personagens == 0) {
+                            printf("Tabuleiro ainda nao carregado. Aguarde a lista de personagens.\n");
+                            break;
+                        }
+
+                        printf("\nDigite o numero do personagem que voce quer chutar (0-%d): ", jogo.num_personagens - 1);
+                        char chuteEntrada[32];
+                        if (!fgets(chuteEntrada, sizeof(chuteEntrada), stdin)) {
+                            printf("Erro de leitura. Encerrando jogo.\n");
+                            jogo_ativo = 0;
+                            turno_concluido = 1;
+                            break;
+                        }
+                        chuteEntrada[strcspn(chuteEntrada, "\n")] = '\0';
+                        if (strlen(chuteEntrada) == 0) {
+                            printf("Entrada vazia. Tente novamente.\n");
+                            break;
+                        }
+
+                        errno = 0;
+                        char* fimChute = NULL;
+                        long chute_long = strtol(chuteEntrada, &fimChute, 10);
+                        if (errno != 0 || fimChute == chuteEntrada) {
+                            printf("Valor invalido. Informe um numero valido.\n");
+                            break;
+                        }
+
+                        int chute = (int)chute_long;
+                        if (chute < 0 || chute >= jogo.num_personagens) {
+                            printf("Indice fora do intervalo valido (0-%d).\n", jogo.num_personagens - 1);
+                            break;
+                        }
+
+                        char msg[64];
+                        snprintf(msg, sizeof(msg), "CHUTE:%d", chute);
+                        enviar_mensagem(clientSocket, msg);
+
+                        int resposta_bytes = receber_mensagem(clientSocket, buffer, BUFFER_SIZE);
+                        if (resposta_bytes <= 0) {
+                            printf("Conexao perdida ao aguardar o resultado do chute.\n");
+                            jogo_ativo = 0;
+                            turno_concluido = 1;
+                            break;
+                        }
+
                         if (strcmp(buffer, "VITORIA") == 0) {
                             printf("\n*** PARABENS! VOCE VENCEU! ***\n");
                             jogo_ativo = 0;
+                            turno_concluido = 1;
+                        } else if (strcmp(buffer, "CHUTE_ERRADO") == 0) {
+                            printf("\nChute errado! O turno passara para o oponente.\n");
+                            turno_concluido = 1;
+                        } else if (strcmp(buffer, "CHUTE_INVALIDO") == 0) {
+                            printf("\nChute invalido. Verifique o numero informado e tente novamente no proximo aviso de turno.\n");
+                            turno_concluido = 1;
+                        } else {
+                            printf("Resposta inesperada do servidor: %s\n", buffer);
+                            turno_concluido = 1;
                         }
-                        else if (strcmp(buffer, "CHUTE_ERRADO") == 0) {
-                            printf("\nChute errado! Continue tentando...\n");
-                        }
+                        break;
                     }
-                } else {
-                    printf("Numero invalido!\n");
+                    case 2:
+                        atualizar_status_personagem(&jogo);
+                        break;
+                    case 3:
+                        exibir_sugestoes_perguntas(&jogo);
+                        break;
+                    default:
+                        printf("Opcao invalida. Escolha entre 0 e 3.\n");
+                        break;
                 }
             }
         }
@@ -217,18 +548,45 @@ int main() {
             printf("\nAguarde seu turno...\n");
         }
         else if (strncmp(buffer, "PERGUNTA_RECEBIDA:", 18) == 0) {
-            // Oponente fez uma pergunta
             char* pergunta = buffer + 18;
             printf("\n=== PERGUNTA DO OPONENTE ===\n");
             printf("%s\n", pergunta);
-            printf("Digite sua resposta (1 para SIM, 0 para NAO): ");
-            
-            int resposta;
-            scanf("%d", &resposta);
-            getchar(); // Limpar buffer
-            
+            mostrar_tabuleiro(&jogo);
+
+            int resposta_valida = 0;
+            int resposta_valor = 0;
+            while (jogo_ativo && !resposta_valida) {
+                printf("Digite sua resposta (1 para SIM, 0 para NAO): ");
+                char respostaEntrada[16];
+                if (!fgets(respostaEntrada, sizeof(respostaEntrada), stdin)) {
+                    printf("Erro de leitura. Encerrando jogo.\n");
+                    jogo_ativo = 0;
+                    break;
+                }
+
+                respostaEntrada[strcspn(respostaEntrada, "\n")] = '\0';
+                if (strlen(respostaEntrada) == 0) {
+                    continue;
+                }
+
+                errno = 0;
+                char* fimResposta = NULL;
+                long valor = strtol(respostaEntrada, &fimResposta, 10);
+                if (errno != 0 || fimResposta == respostaEntrada || (valor != 0 && valor != 1)) {
+                    printf("Entrada invalida. Responda apenas com 1 (SIM) ou 0 (NAO).\n");
+                    continue;
+                }
+
+                resposta_valor = (int)valor;
+                resposta_valida = 1;
+            }
+
+            if (!jogo_ativo) {
+                break;
+            }
+
             char msg[100];
-            sprintf(msg, "RESPOSTA:%d", resposta);
+            snprintf(msg, sizeof(msg), "RESPOSTA:%d", resposta_valor);
             enviar_mensagem(clientSocket, msg);
             printf("Resposta enviada!\n");
         }
@@ -236,6 +594,12 @@ int main() {
             printf("\n*** VOCE PERDEU! ***\n");
             printf("Seu oponente acertou seu personagem!\n");
             jogo_ativo = 0;
+        }
+        else if (strcmp(buffer, "CHUTE_INVALIDO") == 0) {
+            printf("\nSeu ultimo chute foi considerado invalido. O servidor enviara seu turno novamente.\n");
+        }
+        else if (strcmp(buffer, "OPONENTE_CHUTE_INVALIDO") == 0) {
+            printf("\nO oponente tentou um chute invalido. Eles receberao outra chance.\n");
         }
         else if (strcmp(buffer, "OPONENTE_ERROU_CHUTE") == 0) {
             printf("\nSeu oponente errou o chute! Continue tentando...\n");
@@ -252,6 +616,5 @@ int main() {
 
     closesocket(clientSocket);
     WSACleanup();
-    closegraph();
     return 0;
 }

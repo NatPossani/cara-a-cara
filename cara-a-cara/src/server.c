@@ -5,25 +5,12 @@
 #include <winsock2.h>
 #include <windows.h>
 
+#include "../include/game_data.h"
+
 #pragma comment(lib, "ws2_32.lib")
 
-#define MAX_CHARS 10
 #define BUFFER_SIZE 1024
 #define PORT 51171
-
-// Lista de personagens (baseada nas imagens disponíveis)
-const char* personagens[MAX_CHARS] = {
-    "2a11dc0774d583dc400f17158a244a36",
-    "48cffb00285969f09d8b7037a16f6069",
-    "5ce6a7fde6d11060e833d3cbcaa9448f",
-    "64d0962733f113dc16bb9429715fbe65",
-    "acb51114bc454d50fa726a2c2582c13d",
-    "bd809f77937fd06963775c22dd0cb8d7",
-    "d30ed3c904a5f1628b269ce6965e2a33",
-    "eadffbeafb9357aa015d25e397dcdb08",
-    "fa2d378b01e96a946bad90b448ddc807",
-    "gerard_way"
-};
 
 // Função para enviar mensagem ao cliente
 int enviar_mensagem(SOCKET sock, const char* mensagem) {
@@ -47,13 +34,32 @@ int receber_mensagem(SOCKET sock, char* buffer, int tamanho) {
 void enviar_lista_personagens(SOCKET sock) {
     char mensagem[BUFFER_SIZE];
     strcpy(mensagem, "PERSONAGENS:");
+
     for (int i = 0; i < MAX_CHARS; i++) {
-        char temp[100];
-        sprintf(temp, "%d:%s;", i, personagens[i]);
-        if (strlen(mensagem) + strlen(temp) < BUFFER_SIZE - 1) {
-            strcat(mensagem, temp);
+        char temp[256];
+        int escrito = snprintf(
+            temp,
+            sizeof(temp),
+            "%d:%s|%s|%s;",
+            i,
+            PERSONAGENS_DADOS[i].nome,
+            PERSONAGENS_DADOS[i].emoji,
+            PERSONAGENS_DADOS[i].resumo
+        );
+
+        if (escrito < 0) {
+            continue;
         }
+
+        size_t usado = strlen(mensagem);
+        size_t restante = BUFFER_SIZE - usado;
+        if ((size_t)escrito >= restante) {
+            break;
+        }
+
+        strncat(mensagem, temp, restante - 1);
     }
+
     enviar_mensagem(sock, mensagem);
 }
 
@@ -136,8 +142,18 @@ int main() {
         personagem2 = rand() % MAX_CHARS;
     }
 
-    printf("Personagem do Jogador 1: %s (indice %d)\n", personagens[personagem1], personagem1);
-    printf("Personagem do Jogador 2: %s (indice %d)\n", personagens[personagem2], personagem2);
+    printf(
+        "Personagem do Jogador 1: %s %s (indice %d)\n",
+        PERSONAGENS_DADOS[personagem1].emoji,
+        PERSONAGENS_DADOS[personagem1].nome,
+        personagem1
+    );
+    printf(
+        "Personagem do Jogador 2: %s %s (indice %d)\n",
+        PERSONAGENS_DADOS[personagem2].emoji,
+        PERSONAGENS_DADOS[personagem2].nome,
+        personagem2
+    );
 
     // Enviar lista de personagens para ambos
     printf("Enviando lista de personagens...\n");
@@ -148,13 +164,29 @@ int main() {
 
     // Enviar personagem secreto para cada jogador
     printf("Enviando personagens secretos...\n");
-    char msg_secreto1[100];
-    sprintf(msg_secreto1, "SEU_PERSONAGEM:%d:%s", personagem1, personagens[personagem1]);
+    char msg_secreto1[256];
+    snprintf(
+        msg_secreto1,
+        sizeof(msg_secreto1),
+        "SEU_PERSONAGEM:%d:%s|%s|%s",
+        personagem1,
+        PERSONAGENS_DADOS[personagem1].nome,
+        PERSONAGENS_DADOS[personagem1].emoji,
+        PERSONAGENS_DADOS[personagem1].resumo
+    );
     enviar_mensagem(clientSocket1, msg_secreto1);
     Sleep(100);
 
-    char msg_secreto2[100];
-    sprintf(msg_secreto2, "SEU_PERSONAGEM:%d:%s", personagem2, personagens[personagem2]);
+    char msg_secreto2[256];
+    snprintf(
+        msg_secreto2,
+        sizeof(msg_secreto2),
+        "SEU_PERSONAGEM:%d:%s|%s|%s",
+        personagem2,
+        PERSONAGENS_DADOS[personagem2].nome,
+        PERSONAGENS_DADOS[personagem2].emoji,
+        PERSONAGENS_DADOS[personagem2].resumo
+    );
     enviar_mensagem(clientSocket2, msg_secreto2);
     Sleep(100);
 
@@ -239,8 +271,20 @@ int main() {
         } else if (strncmp(buffer, "CHUTE:", 6) == 0) {
             // Jogador fez um chute
             int chute = atoi(buffer + 6);
-            printf("Jogador %d chutou: %d (personagem: %s)\n", turno, chute, personagens[chute]);
-            
+            if (chute < 0 || chute >= MAX_CHARS) {
+                enviar_mensagem(jogador_atual, "CHUTE_INVALIDO");
+                enviar_mensagem(jogador_oponente, "OPONENTE_CHUTE_INVALIDO");
+                printf("Jogador %d enviou um chute invalido: %d\n", turno, chute);
+                continue;
+            }
+            printf(
+                "Jogador %d chutou: %d (personagem: %s %s)\n",
+                turno,
+                chute,
+                PERSONAGENS_DADOS[chute].emoji,
+                PERSONAGENS_DADOS[chute].nome
+            );
+
             if (chute == personagem_oponente) {
                 // Acertou!
                 enviar_mensagem(jogador_atual, "VITORIA");
