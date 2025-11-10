@@ -184,7 +184,7 @@ void mostrar_tabuleiro(const Jogo* jogo) {
 
     printf("\n=== TABULEIRO DE PERSONAGENS ===\n");
     const int colunas = 3;
-    const int largura_coluna = 40;
+    const int largura_coluna = 38;
 
     for (int inicio_linha = 0; inicio_linha < jogo->num_personagens; inicio_linha += colunas) {
         for (int coluna = 0; coluna < colunas; ++coluna) {
@@ -206,6 +206,9 @@ void mostrar_tabuleiro(const Jogo* jogo) {
                      marcador);
 
             printf("%-*s", largura_coluna, display);
+            if (coluna < colunas - 1) {
+                printf("  ");
+            }
         }
         printf("\n");
     }
