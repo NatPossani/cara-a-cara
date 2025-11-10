@@ -31,6 +31,30 @@ void exibir_menu(void);
 void atualizar_status_personagem(Jogo* jogo);
 void solicitar_escolha_personagem(Jogo* jogo, SOCKET sock, int exibir_tabuleiro);
 
+static int calcular_largura_exibicao(const char* texto) {
+    int largura = 0;
+    const unsigned char* p = (const unsigned char*)texto;
+    while (*p) {
+        if (*p < 0x80) {
+            largura += 1;
+            ++p;
+        } else if ((*p & 0xE0) == 0xC0 && p[1]) {
+            largura += 2;
+            p += 2;
+        } else if ((*p & 0xF0) == 0xE0 && p[1] && p[2]) {
+            largura += 2;
+            p += 3;
+        } else if ((*p & 0xF8) == 0xF0 && p[1] && p[2] && p[3]) {
+            largura += 2;
+            p += 4;
+        } else {
+            largura += 1;
+            ++p;
+        }
+    }
+    return largura;
+}
+
 // Função para receber mensagem do servidor
 int receber_mensagem(SOCKET sock, char* buffer, int tamanho) {
     int bytesReceived = recv(sock, buffer, tamanho - 1, 0);
@@ -186,6 +210,7 @@ void mostrar_tabuleiro(const Jogo* jogo) {
 
     char linhas[MAX_CHARS][128];
     int max_len = 0;
+    int larguras_display[MAX_CHARS];
 
     for (int i = 0; i < jogo->num_personagens; ++i) {
         const Carta* carta = &jogo->cartas[i];
@@ -199,9 +224,10 @@ void mostrar_tabuleiro(const Jogo* jogo) {
                  carta->nome,
                  marcador);
 
-        int len = (int)strlen(linhas[i]);
-        if (len > max_len) {
-            max_len = len;
+        int display_len = calcular_largura_exibicao(linhas[i]);
+        larguras_display[i] = display_len;
+        if (display_len > max_len) {
+            max_len = display_len;
         }
     }
 
@@ -215,7 +241,15 @@ void mostrar_tabuleiro(const Jogo* jogo) {
                 break;
             }
 
-            printf("%-*s", largura_coluna, linhas[idx]);
+            printf("%s", linhas[idx]);
+
+            int padding = largura_coluna - larguras_display[idx];
+            if (padding < 2) {
+                padding = 2;
+            }
+            for (int espaco = 0; espaco < padding; ++espaco) {
+                putchar(' ');
+            }
         }
         printf("\n");
     }
