@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 
 #include "../include/game_data.h"
@@ -282,6 +285,7 @@ void mostrar_tabuleiro(const Jogo* jogo) {
     int linhas_impressas = (jogo->num_personagens + colunas - 1) / colunas;
 
 #ifdef _WIN32
+    fflush(stdout);
     HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFO info;
     BOOL podeReposicionar = console != INVALID_HANDLE_VALUE &&
@@ -303,10 +307,31 @@ void mostrar_tabuleiro(const Jogo* jogo) {
                     (SHORT)(baseY + linha)
                 };
                 SetConsoleCursorPosition(console, pos);
+
+                char campo[256];
+                size_t bytes = strlen(linhas[idx]);
+                if (bytes >= sizeof(campo) - 1) {
+                    bytes = sizeof(campo) - 2;
+                }
+                memcpy(campo, linhas[idx], bytes);
+
+                int padding = largura_coluna - larguras_display[idx];
+                if (padding < 1) {
+                    padding = 1;
+                }
+                if ((int)(bytes + padding) >= (int)sizeof(campo) - 1) {
+                    padding = (int)sizeof(campo) - 1 - (int)bytes;
+                    if (padding < 1) {
+                        padding = 1;
+                    }
+                }
+                memset(campo + bytes, ' ', padding);
+                campo[bytes + padding] = '\0';
+
                 DWORD escritos = 0;
                 WriteConsoleA(console,
-                              linhas[idx],
-                              (DWORD)strlen(linhas[idx]),
+                              campo,
+                              (DWORD)strlen(campo),
                               &escritos,
                               NULL);
             }
@@ -315,6 +340,7 @@ void mostrar_tabuleiro(const Jogo* jogo) {
         COORD fim = { baseX, (SHORT)(baseY + linhas_impressas) };
         SetConsoleCursorPosition(console, fim);
         printf("\nLegenda: [ ] ativo | [X] eliminado\n");
+        fflush(stdout);
         return;
     }
 #endif
