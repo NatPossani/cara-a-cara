@@ -74,6 +74,7 @@ static int largura_codepoint(unsigned int code) {
          code == 0x2329 || code == 0x232A ||
          (code >= 0x2E80 && code <= 0xA4CF && code != 0x303F) ||
          (code >= 0xAC00 && code <= 0xD7A3) ||
+         (code >= 0x2500 && code <= 0x259F) ||
          (code >= 0xF900 && code <= 0xFAFF) ||
          (code >= 0xFE10 && code <= 0xFE19) ||
          (code >= 0xFE30 && code <= 0xFE6F) ||
