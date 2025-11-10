@@ -5,18 +5,16 @@
 
 // Atributos possíveis dos personagens (bitmask)
 #define FEATURE_GENDER_MASC      (1u << 0)
-#define FEATURE_GENDER_FEM       (1u << 1)
-#define FEATURE_HEADWEAR         (1u << 2)
-#define FEATURE_GLASSES          (1u << 3)
-#define FEATURE_BEARD            (1u << 4)
-#define FEATURE_HAIR_RED         (1u << 5)
-#define FEATURE_HAIR_BLONDE      (1u << 6)
-#define FEATURE_HAIR_CURLY       (1u << 7)
-#define FEATURE_UNIFORM          (1u << 8)
-#define FEATURE_SCARF            (1u << 9)
-#define FEATURE_PROF_SAUDE       (1u << 10)
-#define FEATURE_PROF_EDUCACAO    (1u << 11)
-#define FEATURE_PROF_CULINARIA   (1u << 12)
+#define FEATURE_HEADWEAR         (1u << 1)
+#define FEATURE_GLASSES          (1u << 2)
+#define FEATURE_BEARD            (1u << 3)
+#define FEATURE_HAIR_BLONDE      (1u << 4)
+#define FEATURE_HAIR_CURLY       (1u << 5)
+#define FEATURE_UNIFORM          (1u << 6)
+#define FEATURE_SCARF            (1u << 7)
+#define FEATURE_PROF_SAUDE       (1u << 8)
+#define FEATURE_PROF_EDUCACAO    (1u << 9)
+#define FEATURE_PROF_CULINARIA   (1u << 10)
 
 typedef struct {
     const char* nome;
@@ -32,34 +30,34 @@ typedef struct {
 
 static const PersonagemDados PERSONAGENS_DADOS[MAX_CHARS] = {
     {
-        "Ava",
-        "☜(⌒▽⌒)☞",
-        FEATURE_GENDER_FEM | FEATURE_HAIR_RED
+        "Aline",
+        ":-)",
+        FEATURE_GLASSES
     },
     {
-        "Ben",
-        "ʕ•ᴥ•ʔ",
+        "Bruno",
+        ";-)",
         FEATURE_GENDER_MASC | FEATURE_BEARD
     },
     {
-        "Chloe",
-        "(づ｡◕‿◕｡)づ",
-        FEATURE_GENDER_FEM | FEATURE_HAIR_BLONDE
+        "Camila",
+        ":D",
+        FEATURE_HEADWEAR
     },
     {
         "Diego",
-        "(ง •̀•́)ง",
+        ":P",
         FEATURE_GENDER_MASC | FEATURE_HAIR_CURLY
     },
     {
-        "Eva",
-        "(∩^o^)⊃━☆",
-        FEATURE_GENDER_FEM | FEATURE_HEADWEAR | FEATURE_PROF_EDUCACAO
+        "Eduarda",
+        ":]",
+        FEATURE_UNIFORM
     },
     {
-        "Felix",
-        "ヽ(⌐■-■)ノ♪",
-        FEATURE_GENDER_MASC | FEATURE_HEADWEAR | FEATURE_UNIFORM
+        "Felipe",
+        "B-)",
+        FEATURE_GENDER_MASC | FEATURE_GLASSES
     },
     {
         "Gina",
