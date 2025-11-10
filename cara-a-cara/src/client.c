@@ -31,26 +31,67 @@ void exibir_menu(void);
 void atualizar_status_personagem(Jogo* jogo);
 void solicitar_escolha_personagem(Jogo* jogo, SOCKET sock, int exibir_tabuleiro);
 
+static unsigned int utf8_avancar(const unsigned char** p) {
+    unsigned int code = 0;
+    unsigned char c = **p;
+
+    if (c < 0x80) {
+        code = c;
+        (*p)++;
+        return code;
+    }
+
+    if ((c & 0xE0) == 0xC0 && (*p)[1]) {
+        code = ((unsigned int)(c & 0x1F) << 6) | (unsigned int)((*p)[1] & 0x3F);
+        *p += 2;
+        return code;
+    }
+
+    if ((c & 0xF0) == 0xE0 && (*p)[1] && (*p)[2]) {
+        code = ((unsigned int)(c & 0x0F) << 12) |
+               ((unsigned int)((*p)[1] & 0x3F) << 6) |
+               (unsigned int)((*p)[2] & 0x3F);
+        *p += 3;
+        return code;
+    }
+
+    if ((c & 0xF8) == 0xF0 && (*p)[1] && (*p)[2] && (*p)[3]) {
+        code = ((unsigned int)(c & 0x07) << 18) |
+               ((unsigned int)((*p)[1] & 0x3F) << 12) |
+               ((unsigned int)((*p)[2] & 0x3F) << 6) |
+               (unsigned int)((*p)[3] & 0x3F);
+        *p += 4;
+        return code;
+    }
+
+    (*p)++;
+    return c;
+}
+
+static int largura_codepoint(unsigned int code) {
+    if (code >= 0x1100 &&
+        (code <= 0x115F ||
+         code == 0x2329 || code == 0x232A ||
+         (code >= 0x2E80 && code <= 0xA4CF && code != 0x303F) ||
+         (code >= 0xAC00 && code <= 0xD7A3) ||
+         (code >= 0xF900 && code <= 0xFAFF) ||
+         (code >= 0xFE10 && code <= 0xFE19) ||
+         (code >= 0xFE30 && code <= 0xFE6F) ||
+         (code >= 0xFF00 && code <= 0xFF60) ||
+         (code >= 0xFFE0 && code <= 0xFFE6) ||
+         (code >= 0x1F300 && code <= 0x1F64F) ||
+         (code >= 0x1F900 && code <= 0x1F9FF))) {
+        return 2;
+    }
+    return 1;
+}
+
 static int calcular_largura_exibicao(const char* texto) {
     int largura = 0;
     const unsigned char* p = (const unsigned char*)texto;
     while (*p) {
-        if (*p < 0x80) {
-            largura += 1;
-            ++p;
-        } else if ((*p & 0xE0) == 0xC0 && p[1]) {
-            largura += 2;
-            p += 2;
-        } else if ((*p & 0xF0) == 0xE0 && p[1] && p[2]) {
-            largura += 2;
-            p += 3;
-        } else if ((*p & 0xF8) == 0xF0 && p[1] && p[2] && p[3]) {
-            largura += 2;
-            p += 4;
-        } else {
-            largura += 1;
-            ++p;
-        }
+        unsigned int code = utf8_avancar(&p);
+        largura += largura_codepoint(code);
     }
     return largura;
 }
