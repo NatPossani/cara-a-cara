@@ -72,35 +72,6 @@ static unsigned int utf8_avancar(const unsigned char** p) {
     return c;
 }
 
-#ifdef _WIN32
-static int calcular_largura_exibicao_win(const char* texto) {
-    WCHAR wide[256];
-    int len = MultiByteToWideChar(CP_UTF8, 0, texto, -1, wide, (int)(sizeof(wide) / sizeof(wide[0])));
-    if (len <= 0) {
-        return -1;
-    }
-
-    int largura = 0;
-    for (int i = 0; i < len - 1; ++i) {
-        WCHAR c = wide[i];
-        WORD type = 0;
-        if (GetStringTypeW(CT_CTYPE3, &c, 1, &type)) {
-            if (type & (C3_DIACRITIC | C3_NONSPACING | C3_VOWELMARK)) {
-                continue;
-            }
-            if (type & C3_FULLWIDTH) {
-                largura += 2;
-            } else {
-                largura += 1;
-            }
-        } else {
-            largura += 1;
-        }
-    }
-    return largura;
-}
-#endif
-
 static int is_combining_codepoint(unsigned int code) {
     if ((code >= 0x0300 && code <= 0x036F) ||  // Combining Diacritical Marks
         (code >= 0x1AB0 && code <= 0x1AFF) ||  // Extended
@@ -137,13 +108,6 @@ static int largura_codepoint(unsigned int code) {
 }
 
 static int calcular_largura_exibicao(const char* texto) {
-#ifdef _WIN32
-    int largura_win = calcular_largura_exibicao_win(texto);
-    if (largura_win >= 0) {
-        return largura_win;
-    }
-#endif
-
     int largura = 0;
     const unsigned char* p = (const unsigned char*)texto;
     while (*p) {
