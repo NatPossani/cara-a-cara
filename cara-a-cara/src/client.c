@@ -292,6 +292,18 @@ void mostrar_tabuleiro(const Jogo* jogo) {
                             GetConsoleScreenBufferInfo(console, &info);
 
     if (podeReposicionar) {
+        int largura_disponivel = info.dwSize.X - info.dwCursorPosition.X;
+        if (largura_disponivel <= 0) {
+            largura_disponivel = info.dwSize.X;
+        }
+        int largura_coluna_win = largura_disponivel / colunas;
+        if (largura_coluna_win < max_len + 4) {
+            largura_coluna_win = max_len + 4;
+        }
+        if (largura_coluna_win < 1) {
+            largura_coluna_win = 1;
+        }
+
         SHORT baseX = info.dwCursorPosition.X;
         SHORT baseY = info.dwCursorPosition.Y;
 
@@ -303,9 +315,12 @@ void mostrar_tabuleiro(const Jogo* jogo) {
                 }
 
                 COORD pos = {
-                    (SHORT)(baseX + coluna * largura_coluna),
+                    (SHORT)(baseX + coluna * largura_coluna_win),
                     (SHORT)(baseY + linha)
                 };
+                if (pos.X >= info.dwSize.X) {
+                    pos.X = (SHORT)(info.dwSize.X - 1);
+                }
                 SetConsoleCursorPosition(console, pos);
 
                 char campo[256];
@@ -315,7 +330,7 @@ void mostrar_tabuleiro(const Jogo* jogo) {
                 }
                 memcpy(campo, linhas[idx], bytes);
 
-                int padding = largura_coluna - larguras_display[idx];
+                int padding = largura_coluna_win - larguras_display[idx];
                 if (padding < 1) {
                     padding = 1;
                 }
