@@ -72,7 +72,25 @@ static unsigned int utf8_avancar(const unsigned char** p) {
     return c;
 }
 
+static int is_combining_codepoint(unsigned int code) {
+    if ((code >= 0x0300 && code <= 0x036F) ||  // Combining Diacritical Marks
+        (code >= 0x1AB0 && code <= 0x1AFF) ||  // Extended
+        (code >= 0x1DC0 && code <= 0x1DFF) ||  // Supplement
+        (code >= 0x20D0 && code <= 0x20FF) ||  // Marks for Symbols
+        (code >= 0xFE20 && code <= 0xFE2F) ||  // Half Marks
+        (code >= 0xFE00 && code <= 0xFE0F) ||  // Variation Selectors
+        code == 0x200D ||                      // Zero Width Joiner
+        code == 0x200C) {                      // Zero Width Non-Joiner
+        return 1;
+    }
+    return 0;
+}
+
 static int largura_codepoint(unsigned int code) {
+    if (is_combining_codepoint(code)) {
+        return 0;
+    }
+
     if (code >= 0x1100 &&
         (code <= 0x115F ||
          code == 0x2329 || code == 0x232A ||
