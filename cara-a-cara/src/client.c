@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <windows.h>
 
 #include "../include/game_data.h"
 
@@ -277,6 +278,46 @@ void mostrar_tabuleiro(const Jogo* jogo) {
     if (largura_coluna < max_len + 4) {
         largura_coluna = max_len + 4;
     }
+
+    int linhas_impressas = (jogo->num_personagens + colunas - 1) / colunas;
+
+#ifdef _WIN32
+    HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO info;
+    BOOL podeReposicionar = console != INVALID_HANDLE_VALUE &&
+                            GetConsoleScreenBufferInfo(console, &info);
+
+    if (podeReposicionar) {
+        SHORT baseX = info.dwCursorPosition.X;
+        SHORT baseY = info.dwCursorPosition.Y;
+
+        for (int linha = 0; linha < linhas_impressas; ++linha) {
+            for (int coluna = 0; coluna < colunas; ++coluna) {
+                int idx = linha * colunas + coluna;
+                if (idx >= jogo->num_personagens) {
+                    break;
+                }
+
+                COORD pos = {
+                    (SHORT)(baseX + coluna * largura_coluna),
+                    (SHORT)(baseY + linha)
+                };
+                SetConsoleCursorPosition(console, pos);
+                DWORD escritos = 0;
+                WriteConsoleA(console,
+                              linhas[idx],
+                              (DWORD)strlen(linhas[idx]),
+                              &escritos,
+                              NULL);
+            }
+        }
+
+        COORD fim = { baseX, (SHORT)(baseY + linhas_impressas) };
+        SetConsoleCursorPosition(console, fim);
+        printf("\nLegenda: [ ] ativo | [X] eliminado\n");
+        return;
+    }
+#endif
 
     for (int inicio_linha = 0; inicio_linha < jogo->num_personagens; inicio_linha += colunas) {
         for (int coluna = 0; coluna < colunas; ++coluna) {
