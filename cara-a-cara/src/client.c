@@ -308,8 +308,9 @@ void mostrar_tabuleiro(const Jogo* jogo) {
             printf("%s", linhas[idx]);
 
             int padding = largura_coluna - larguras_display[idx];
-            if (padding < 2) {
-                padding = 2;
+            const int padding_minimo = 6;
+            if (padding < padding_minimo) {
+                padding = padding_minimo;
             }
             for (int espaco = 0; espaco < padding; ++espaco) {
                 putchar(' ');
