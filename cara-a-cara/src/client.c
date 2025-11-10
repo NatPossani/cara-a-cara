@@ -183,8 +183,8 @@ void mostrar_tabuleiro(const Jogo* jogo) {
     }
 
     printf("\n=== TABULEIRO DE PERSONAGENS ===\n");
-    const int colunas = 5;
-    const int largura_coluna = 32;
+    const int colunas = 3;
+    const int largura_coluna = 40;
 
     for (int inicio_linha = 0; inicio_linha < jogo->num_personagens; inicio_linha += colunas) {
         for (int coluna = 0; coluna < colunas; ++coluna) {
