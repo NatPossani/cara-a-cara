@@ -104,6 +104,8 @@ static void enviar_personagem_secreto(SOCKET sock, int personagem) {
 int main() {
     WSADATA winsocketsDados;
 
+    system("chcp 65001 > nul 2>&1");
+
     if (WSAStartup(MAKEWORD(2, 2), &winsocketsDados) != 0) {
         printf("WSAStartup falhou\n");
         return 1;

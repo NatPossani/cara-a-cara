@@ -304,6 +304,8 @@ int main() {
     memset(&jogo, 0, sizeof(Jogo));
     jogo.meu_personagem = -1;
 
+    system("chcp 65001 > nul 2>&1");
+
     if (WSAStartup(MAKEWORD(2, 2), &winsocketsDados) != 0) {
         printf("Falha ao inicializar o Winsock\n");
         return 1;
