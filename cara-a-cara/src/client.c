@@ -232,7 +232,11 @@ void mostrar_tabuleiro(const Jogo* jogo) {
     }
 
     const int colunas = 3;
-    int largura_coluna = max_len + 4;
+    const int largura_terminal = 120;
+    int largura_coluna = largura_terminal / colunas;
+    if (largura_coluna < max_len + 4) {
+        largura_coluna = max_len + 4;
+    }
 
     for (int inicio_linha = 0; inicio_linha < jogo->num_personagens; inicio_linha += colunas) {
         for (int coluna = 0; coluna < colunas; ++coluna) {
