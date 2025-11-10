@@ -259,14 +259,12 @@ void mostrar_tabuleiro(const Jogo* jogo) {
     for (int i = 0; i < jogo->num_personagens; ++i) {
         const Carta* carta = &jogo->cartas[i];
         char status = carta->eliminado ? 'X' : ' ';
-        const char* marcador = (jogo->meu_personagem == i) ? " (Voce)" : "";
 
-        snprintf(linhas[i], sizeof(linhas[i]), "%2d)[%c] %s %s%s",
+        snprintf(linhas[i], sizeof(linhas[i]), "%2d)[%c] %s %s",
                  i,
                  status,
                  carta->emoji,
-                 carta->nome,
-                 marcador);
+                 carta->nome);
 
         int display_len = calcular_largura_exibicao(linhas[i]);
         larguras_display[i] = display_len;
