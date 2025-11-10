@@ -183,8 +183,30 @@ void mostrar_tabuleiro(const Jogo* jogo) {
     }
 
     printf("\n=== TABULEIRO DE PERSONAGENS ===\n");
+
+    char linhas[MAX_CHARS][128];
+    int max_len = 0;
+
+    for (int i = 0; i < jogo->num_personagens; ++i) {
+        const Carta* carta = &jogo->cartas[i];
+        char status = carta->eliminado ? 'X' : ' ';
+        const char* marcador = (jogo->meu_personagem == i) ? " (Voce)" : "";
+
+        snprintf(linhas[i], sizeof(linhas[i]), "%2d)[%c] %s %s%s",
+                 i,
+                 status,
+                 carta->emoji,
+                 carta->nome,
+                 marcador);
+
+        int len = (int)strlen(linhas[i]);
+        if (len > max_len) {
+            max_len = len;
+        }
+    }
+
     const int colunas = 3;
-    const int largura_coluna = 38;
+    int largura_coluna = max_len + 4;
 
     for (int inicio_linha = 0; inicio_linha < jogo->num_personagens; inicio_linha += colunas) {
         for (int coluna = 0; coluna < colunas; ++coluna) {
@@ -193,22 +215,7 @@ void mostrar_tabuleiro(const Jogo* jogo) {
                 break;
             }
 
-            const Carta* carta = &jogo->cartas[idx];
-            char status = carta->eliminado ? 'X' : ' ';
-            const char* marcador = (jogo->meu_personagem == idx) ? " (Voce)" : "";
-
-            char display[128];
-            snprintf(display, sizeof(display), "%2d)[%c] %s %s%s",
-                     idx,
-                     status,
-                     carta->emoji,
-                     carta->nome,
-                     marcador);
-
-            printf("%-*s", largura_coluna, display);
-            if (coluna < colunas - 1) {
-                printf("  ");
-            }
+            printf("%-*s", largura_coluna, linhas[idx]);
         }
         printf("\n");
     }
