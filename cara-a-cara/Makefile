@@ -4,11 +4,9 @@ LDFLAGS = -lws2_32
 SRC_DIR = src
 BUILD_DIR = build
 
-# Arquivos fonte
 SERVER_SRC = $(SRC_DIR)/server.c
 CLIENT_SRC = $(SRC_DIR)/client.c
 
-# Executáveis
 SERVER_EXE = $(BUILD_DIR)/server.exe
 CLIENT_EXE = $(BUILD_DIR)/client.exe
 
